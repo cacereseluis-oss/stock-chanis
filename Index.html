@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Chani's | Control de Stock</title>
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+    .loader { border-top-color: #6366f1; animation: spinner 0.8s linear infinite; }
+    @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-24">
+
+  <!-- Navbar Superior -->
+  <header class="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3">
+    <div class="max-w-3xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center font-bold text-lg shadow-lg shadow-indigo-500/20">
+          C
+        </div>
+        <div>
+          <h1 class="font-bold text-base tracking-tight leading-none">Chani's</h1>
+          <span class="text-[11px] text-slate-400 font-medium">Gestión de Inventario</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="cambiarVendedor()" id="btnVendedor" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span id="nombreVendedorLabel">Vendedor</span>
+        </button>
+        <button onclick="cargarProductos()" title="Actualizar" class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-300 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Contenido Principal -->
+  <main class="max-w-3xl mx-auto px-4 pt-4">
+    
+    <!-- Métricas Rápidas -->
+    <div class="grid grid-cols-3 gap-2.5 mb-4">
+      <div class="bg-slate-900 border border-slate-800/80 p-3 rounded-xl">
+        <p class="text-[11px] text-slate-400 uppercase font-semibold">Productos</p>
+        <p id="statTotalProd" class="text-xl font-bold mt-0.5">-</p>
+      </div>
+      <div class="bg-slate-900 border border-slate-800/80 p-3 rounded-xl">
+        <p class="text-[11px] text-slate-400 uppercase font-semibold">Unidades</p>
+        <p id="statTotalUnid" class="text-xl font-bold text-indigo-400 mt-0.5">-</p>
+      </div>
+      <div class="bg-slate-900 border border-slate-800/80 p-3 rounded-xl">
+        <p class="text-[11px] text-slate-400 uppercase font-semibold">Stock Bajo</p>
+        <p id="statBajoStock" class="text-xl font-bold text-amber-400 mt-0.5">-</p>
+      </div>
+    </div>
+
+    <!-- Buscador, Filtro y Botón Nuevo -->
+    <div class="flex flex-col sm:flex-row gap-2 mb-4">
+      <div class="flex gap-2 flex-1">
+        <div class="relative flex-1">
+          <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          <input type="text" id="buscador" onkeyup="filtrarProductos()" placeholder="Buscar producto o código..." class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 transition placeholder-slate-500">
+        </div>
+        <select id="filtroCategoria" onchange="filtrarProductos()" class="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5 text-sm text-slate-300 focus:outline-none focus:border-indigo-500">
+          <option value="">Todas</option>
+        </select>
+      </div>
+      <button onclick="abrirModalNuevo()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2.5 rounded-xl text-sm shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 transition shrink-0">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        Nuevo Producto
+      </button>
+    </div>
+
+    <!-- Estado de Carga -->
+    <div id="loader" class="flex flex-col items-center justify-center py-16">
+      <div class="loader ease-linear rounded-full border-4 border-t-4 border-slate-800 h-10 w-10 mb-3"></div>
+      <p class="text-xs text-slate-400">Sincronizando inventario de Chani's...</p>
+    </div>
+
+    <!-- Lista de Productos -->
+    <div id="listaProductos" class="space-y-2.5 hidden"></div>
+  </main>
+
+  <!-- Modal Operación (Venta / Ingreso Stock) -->
+  <div id="modalOperacion" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 shadow-2xl">
+      <div class="flex justify-between items-start mb-4">
+        <div>
+          <span id="modalCategoria" class="text-[11px] font-semibold uppercase tracking-wider text-indigo-400">Categoría</span>
+          <h2 id="modalTitulo" class="text-lg font-bold text-white leading-tight mt-0.5">Nombre Producto</h2>
+          <p class="text-xs text-slate-400 mt-1">Stock disponible: <strong id="modalStockActual" class="text-slate-200">0</strong> unid. | Precio: <strong id="modalPrecio" class="text-emerald-400">$0</strong></p>
+        </div>
+        <button onclick="cerrarModal()" class="text-slate-400 hover:text-white p-1">✕</button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 bg-slate-950 p-1 rounded-xl mb-4 border border-slate-800">
+        <button id="tabVenta" onclick="setTipo('VENTA')" class="py-2 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition">Registrar Venta (-)</button>
+        <button id="tabIngreso" onclick="setTipo('INGRESO')" class="py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">Reponer Stock (+)</button>
+      </div>
+
+      <div class="mb-5">
+        <label class="block text-xs text-slate-400 mb-2">Cantidad de unidades</label>
+        <div class="flex items-center gap-3">
+          <button onclick="ajustarCantidad(-1)" class="w-12 h-12 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold text-xl flex items-center justify-center">-</button>
+          <input type="number" id="inputCantidad" value="1" min="1" class="flex-1 h-12 bg-slate-950 border border-slate-800 rounded-xl text-center text-xl font-bold focus:outline-none focus:border-indigo-500">
+          <button onclick="ajustarCantidad(1)" class="w-12 h-12 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold text-xl flex items-center justify-center">+</button>
+        </div>
+      </div>
+
+      <button id="btnConfirmar" onclick="enviarOperacion()" class="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-semibold text-sm text-white shadow-lg shadow-indigo-600/25 transition flex items-center justify-center gap-2">
+        Confirmar Operación
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal Nuevo Producto -->
+  <div id="modalNuevo" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-t-2xl sm:rounded-2xl p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-base font-bold text-white flex items-center gap-2">
+          <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+          Agregar Nuevo Producto
+        </h2>
+        <button onclick="cerrarModalNuevo()" class="text-slate-400 hover:text-white p-1">✕</button>
+      </div>
+
+      <div class="space-y-3.5 mb-5">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1 font-medium">Código / ID único (ej. TEN-01)</label>
+          <input type="text" id="nuevoId" placeholder="Ej. AUR-01" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 uppercase">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1 font-medium">Nombre del producto</label>
+          <input type="text" id="nuevoNombre" placeholder="Ej. Auriculares Inalámbricos P9" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1 font-medium">Categoría</label>
+          <input type="text" id="nuevoCategoria" list="sugerenciasCat" placeholder="Ej. Electrónica, Fitness, Salud..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+          <datalist id="sugerenciasCat">
+            <option value="Salud">
+            <option value="Fitness">
+            <option value="Electrónica">
+            <option value="Iluminación">
+          </datalist>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs text-slate-400 mb-1 font-medium">Stock Inicial</label>
+            <input type="number" id="nuevoStock" value="10" min="0" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1 font-medium">Precio ($)</label>
+            <input type="number" id="nuevoPrecio" placeholder="0" min="0" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500">
+          </div>
+        </div>
+      </div>
+
+      <button id="btnGuardarNuevo" onclick="crearProducto()" class="w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-semibold text-sm text-white shadow-lg shadow-indigo-600/25 transition">
+        Guardar Producto en Stock
+      </button>
+    </div>
+  </div>
+
+  <!-- Notificación Toast -->
+  <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl text-xs font-medium shadow-xl transition-all duration-300 opacity-0 pointer-events-none"></div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbzI6IM8S_pgGhQt3bLJexCan99jJKmvPtXZrDgtfANto9jQGGImAEWYLLFe90ggit8/exec";
+
+    let productos = [];
+    let productoSeleccionado = null;
+    let tipoOperacion = "VENTA";
+    let vendedorActual = localStorage.getItem("chanis_vendedor") || "";
+
+    window.onload = () => {
+      if (!vendedorActual) {
+        cambiarVendedor();
+      } else {
+        document.getElementById("nombreVendedorLabel").innerText = vendedorActual;
+      }
+      cargarProductos();
+    };
+
+    function cambiarVendedor() {
+      const nombre = prompt("Ingresá tu nombre de vendedor:", vendedorActual);
+      if (nombre && nombre.trim() !== "") {
+        vendedorActual = nombre.trim();
+        localStorage.setItem("chanis_vendedor", vendedorActual);
+        document.getElementById("nombreVendedorLabel").innerText = vendedorActual;
+      }
+    }
+
+    async function cargarProductos() {
+      document.getElementById("loader").classList.remove("hidden");
+      document.getElementById("listaProductos").classList.add("hidden");
+
+      try {
+        const res = await fetch(API_URL);
+        const json = await res.json();
+        if (json.status === "ok") {
+          productos = json.data;
+          actualizarCategorias();
+          actualizarMetricas();
+          renderizarProductos(productos);
+        }
+      } catch (e) {
+        mostrarToast("Error al conectar con Google Sheets", true);
+      } finally {
+        document.getElementById("loader").classList.add("hidden");
+        document.getElementById("listaProductos").classList.remove("hidden");
+      }
+    }
+
+    function actualizarCategorias() {
+      const select = document.getElementById("filtroCategoria");
+      const categorias = [...new Set(productos.map(p => p.categoria).filter(Boolean))];
+      select.innerHTML = '<option value="">Todas</option>';
+      categorias.forEach(cat => {
+        select.innerHTML += `<option value="${cat}">${cat}</option>`;
+      });
+    }
+
+    function actualizarMetricas() {
+      document.getElementById("statTotalProd").innerText = productos.length;
+      const totalUnid = productos.reduce((acc, p) => acc + p.stock, 0);
+      document.getElementById("statTotalUnid").innerText = totalUnid;
+      const bajos = productos.filter(p => p.stock <= p.minimo).length;
+      document.getElementById("statBajoStock").innerText = bajos;
+    }
+
+    function renderizarProductos(lista) {
+      const contenedor = document.getElementById("listaProductos");
+      if (lista.length === 0) {
+        contenedor.innerHTML = `<p class="text-center text-slate-500 text-sm py-10">No se encontraron productos.</p>`;
+        return;
+      }
+
+      contenedor.innerHTML = lista.map(p => {
+        const esBajo = p.stock <= p.minimo;
+        const badgeStock = p.stock === 0 
+          ? `<span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/20">Sin stock</span>`
+          : esBajo 
+            ? `<span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/20">${p.stock} unid. (Bajo)</span>`
+            : `<span class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">${p.stock} unid.</span>`;
+
+        return `
+          <div onclick='abrirModal(${JSON.stringify(p)})' class="bg-slate-900 hover:bg-slate-800/80 active:scale-[0.99] border border-slate-800/90 rounded-xl p-3.5 flex items-center justify-between cursor-pointer transition">
+            <div class="pr-3">
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-mono text-slate-500">${p.id}</span>
+                <span class="text-[10px] text-indigo-400 font-medium">${p.categoria}</span>
+              </div>
+              <h3 class="font-semibold text-sm text-slate-100 mt-0.5">${p.producto}</h3>
+              <p class="text-xs font-bold text-slate-300 mt-1">$${p.precio.toLocaleString('es-AR')}</p>
+            </div>
+            <div class="flex flex-col items-end gap-2 shrink-0">
+              ${badgeStock}
+              <span class="text-[11px] text-indigo-400 font-medium">Gestionar →</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function filtrarProductos() {
+      const texto = document.getElementById("buscador").value.toLowerCase();
+      const cat = document.getElementById("filtroCategoria").value;
+      const filtrados = productos.filter(p => {
+        const coincideTexto = p.producto.toLowerCase().includes(texto) || p.id.toLowerCase().includes(texto);
+        const coincideCat = cat === "" || p.categoria === cat;
+        return coincideTexto && coincideCat;
+      });
+      renderizarProductos(filtrados);
+    }
+
+    function abrirModal(prod) {
+      productoSeleccionado = prod;
+      document.getElementById("modalCategoria").innerText = prod.categoria || "General";
+      document.getElementById("modalTitulo").innerText = prod.producto;
+      document.getElementById("modalStockActual").innerText = prod.stock;
+      document.getElementById("modalPrecio").innerText = "$" + prod.precio.toLocaleString('es-AR');
+      document.getElementById("inputCantidad").value = 1;
+      setTipo("VENTA");
+      document.getElementById("modalOperacion").classList.remove("hidden");
+    }
+
+    function cerrarModal() {
+      document.getElementById("modalOperacion").classList.add("hidden");
+    }
+
+    function abrirModalNuevo() {
+      document.getElementById("nuevoId").value = "";
+      document.getElementById("nuevoNombre").value = "";
+      document.getElementById("nuevoCategoria").value = "";
+      document.getElementById("nuevoStock").value = "10";
+      document.getElementById("nuevoPrecio").value = "";
+      document.getElementById("modalNuevo").classList.remove("hidden");
+    }
+
+    function cerrarModalNuevo() {
+      document.getElementById("modalNuevo").classList.add("hidden");
+    }
+
+    function setTipo(tipo) {
+      tipoOperacion = tipo;
+      const tabV = document.getElementById("tabVenta");
+      const tabI = document.getElementById("tabIngreso");
+      const btn = document.getElementById("btnConfirmar");
+
+      if (tipo === "VENTA") {
+        tabV.className = "py-2 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition";
+        tabI.className = "py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition";
+        btn.className = "w-full py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-semibold text-sm text-white shadow-lg shadow-indigo-600/25 transition";
+        btn.innerText = "Confirmar Venta";
+      } else {
+        tabI.className = "py-2 rounded-lg text-xs font-semibold bg-emerald-600 text-white transition";
+        tabV.className = "py-2 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition";
+        btn.className = "w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm text-white shadow-lg shadow-emerald-600/25 transition";
+        btn.innerText = "Confirmar Ingreso de Stock";
+      }
+    }
+
+    function ajustarCantidad(delta) {
+      const input = document.getElementById("inputCantidad");
+      const val = Math.max(1, (parseInt(input.value) || 1) + delta);
+      input.value = val;
+    }
+
+    async function enviarOperacion() {
+      if (!vendedorActual) {
+        cambiarVendedor();
+        if (!vendedorActual) return;
+      }
+
+      const cantidad = parseInt(document.getElementById("inputCantidad").value);
+      if (!cantidad || cantidad <= 0) return;
+
+      const btn = document.getElementById("btnConfirmar");
+      btn.disabled = true;
+      btn.innerText = "Guardando...";
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          body: JSON.stringify({
+            id: productoSeleccionado.id,
+            tipo: tipoOperacion,
+            cantidad: cantidad,
+            vendedor: vendedorActual
+          })
+        });
+        const json = await res.json();
+
+        if (json.status === "ok") {
+          mostrarToast(tipoOperacion === "VENTA" ? "Venta registrada ✓" : "Stock actualizado ✓", false);
+          cerrarModal();
+          cargarProductos();
+        } else {
+          mostrarToast(json.message || "Error al procesar", true);
+        }
+      } catch (e) {
+        mostrarToast("Error de red al guardar", true);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = tipoOperacion === "VENTA" ? "Confirmar Venta" : "Confirmar Ingreso de Stock";
+      }
+    }
+
+    async function crearProducto() {
+      if (!vendedorActual) {
+        cambiarVendedor();
+        if (!vendedorActual) return;
+      }
+
+      const id = document.getElementById("nuevoId").value.trim();
+      const producto = document.getElementById("nuevoNombre").value.trim();
+      const categoria = document.getElementById("nuevoCategoria").value.trim() || "General";
+      const stock = parseInt(document.getElementById("nuevoStock").value) || 0;
+      const precio = parseFloat(document.getElementById("nuevoPrecio").value) || 0;
+
+      if (!id || !producto || isNaN(precio)) {
+        mostrarToast("Completá el ID, nombre y precio", true);
+        return;
+      }
+
+      const btn = document.getElementById("btnGuardarNuevo");
+      btn.disabled = true;
+      btn.innerText = "Registrando...";
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          body: JSON.stringify({
+            tipo: "CREAR_PRODUCTO",
+            id: id,
+            producto: producto,
+            categoria: categoria,
+            stock: stock,
+            precio: precio,
+            vendedor: vendedorActual
+          })
+        });
+        const json = await res.json();
+
+        if (json.status === "ok") {
+          mostrarToast("¡Producto creado con éxito! ✓", false);
+          cerrarModalNuevo();
+          cargarProductos();
+        } else {
+          mostrarToast(json.message || "Error al crear producto", true);
+        }
+      } catch (e) {
+        mostrarToast("Error de red al crear producto", true);
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Guardar Producto en Stock";
+      }
+    }
+
+    function mostrarToast(msg, esError) {
+      const t = document.getElementById("toast");
+      t.innerText = msg;
+      t.className = `fixed bottom-5 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl text-xs font-semibold shadow-xl transition-all duration-300 ${esError ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'}`;
+      t.style.opacity = "1";
+      setTimeout(() => { t.style.opacity = "0"; }, 3000);
+    }
+  </script>
+</body>
+</html>
